@@ -43,7 +43,7 @@ public class StaticTypeData implements Serializable {
     @Column(name = "name", unique = true, nullable = false)
     private String name;
 
-    // Conexioes
+    // Conexiones
     @Builder.Default
     @ManyToMany
     @JoinTable(name = "type_double_damage_from")
