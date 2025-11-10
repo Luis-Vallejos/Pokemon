@@ -5,8 +5,12 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import java.io.Serializable;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -56,4 +60,20 @@ public class StaticPokemonData implements Serializable {
 
     @Column(name = "baseSpeed", nullable = false)
     private int baseSpeed;
+
+    // Conexiones
+    @Builder.Default
+    @ManyToMany
+    @JoinTable(name = "pokemon_types")
+    private Set<StaticTypeData> types = new HashSet<>();
+
+    @Builder.Default
+    @ManyToMany
+    @JoinTable(name = "pokemon_moves")
+    private Set<StaticMoveData> moves = new HashSet<>();
+
+    @Builder.Default
+    @ManyToMany
+    @JoinTable(name = "pokemon_abilities")
+    private Set<StaticAbilityData> abilities = new HashSet<>();
 }
