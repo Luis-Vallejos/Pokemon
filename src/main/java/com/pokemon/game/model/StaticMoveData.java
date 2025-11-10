@@ -5,6 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.io.Serializable;
 import lombok.AllArgsConstructor;
@@ -53,4 +55,9 @@ public class StaticMoveData implements Serializable {
 
     @Column(name = "damage_class", nullable = false)
     private String damageClass;
+
+    // Conexiones
+    @ManyToOne
+    @JoinColumn(name = "static_type_id", nullable = false)
+    private StaticTypeData type;
 }
