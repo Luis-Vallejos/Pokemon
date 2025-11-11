@@ -10,6 +10,7 @@ import com.pokemon.game.repository.StaticPokemonDataRepository;
 import com.pokemon.game.repository.StaticTypeDataRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType; // Importado
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -36,44 +37,44 @@ public class PokeApiIngestionService {
     private final StaticTypeDataRepository typeRepository;
     private final StaticAbilityDataRepository abilityRepository;
 
-    // Cachés en memoria para construir las relaciones de la base de datos
     private final Map<String, StaticTypeData> typeCache = new ConcurrentHashMap<>();
     private final Map<String, StaticMoveData> moveCache = new ConcurrentHashMap<>();
     private final Map<String, StaticAbilityData> abilityCache = new ConcurrentHashMap<>();
 
-    // --- Clases DTO Internas (Wrapper de consulta y DTOs de Respuesta) ---
-    // (Estas clases modelan la respuesta JSON de la API v1beta2)
-    private static class GqlQuery {
+    // --- DTOs Internos ---
+    // CORRECCIÓN: Usar el payload completo que espera el servidor GraphQL
+    private static class GqlPayload {
 
         public String query;
+        public Object variables = null;
+        public Object operationName = null;
 
-        public GqlQuery(String query) {
+        public GqlPayload(String query) {
             this.query = query;
         }
     }
 
     // --- DTOs para Tipos (Types) ---
-    // Nombres de campo coinciden con la API v1beta2 (sin prefijo)
-    private static class GqlTypeResponse {
+    private static class GqlTypeDefinitionResponse {
 
-        public GqlTypeData data;
+        public GqlTypeDefinitionData data;
     }
 
-    private static class GqlTypeData {
+    private static class GqlTypeDefinitionData {
 
-        public List<GqlType> type;
-    } // SIN PREFIJO
+        public List<GqlTypeDefinition> pokemontype;
+    }
 
-    public static class GqlType {
+    public static class GqlTypeDefinition {
 
         public String name;
-        public List<GqlTypeDamage> typedamagerelations; // SIN PREFIJO
+        public List<GqlTypeDamage> type_efficacies;
     }
 
     public static class GqlTypeDamage {
 
-        public int damage_factor; // La API v1beta2 usa int (200, 50, 0)
-        public GqlTypeName type; // SIN PREFIJO
+        public int damage_factor;
+        public GqlTypeName target_type;
     }
 
     public static class GqlTypeName {
@@ -82,20 +83,20 @@ public class PokeApiIngestionService {
     }
 
     // --- DTOs para Habilidades (Abilities) ---
-    private static class GqlAbilityResponse {
+    private static class GqlAbilityDefinitionResponse {
 
-        public GqlAbilityData data;
+        public GqlAbilityDefinitionData data;
     }
 
-    private static class GqlAbilityData {
+    private static class GqlAbilityDefinitionData {
 
-        public List<GqlAbility> ability;
-    } // SIN PREFIJO
+        public List<GqlAbilityDefinition> pokemonability;
+    }
 
-    public static class GqlAbility {
+    public static class GqlAbilityDefinition {
 
         public String name;
-        public List<GqlAbilityEffect> abilityeffecttexts; // SIN PREFIJO
+        public List<GqlAbilityEffect> effect_entries;
     }
 
     public static class GqlAbilityEffect {
@@ -104,51 +105,57 @@ public class PokeApiIngestionService {
     }
 
     // --- DTOs para Movimientos (Moves) ---
-    private static class GqlMoveResponse {
+    private static class GqlMoveDefinitionResponse {
 
-        public GqlMoveData data;
+        public GqlMoveDefinitionData data;
     }
 
-    private static class GqlMoveData {
+    private static class GqlMoveDefinitionData {
 
-        public List<GqlMove> move;
-    } // SIN PREFIJO
+        public List<GqlMoveDefinition> pokemonmove;
+    }
 
-    public static class GqlMove {
+    public static class GqlMoveDefinition {
 
         public String name;
         public Integer power;
         public Integer accuracy;
         public Integer pp;
         public Integer priority;
-        public GqlTypeName movedamageclass; // SIN PREFIJO
-        public GqlTypeName type; // SIN PREFIJO
+        public GqlTypeName move_damage_class;
+        public GqlTypeName type;
     }
 
     // --- DTOs para Pokémon ---
-    private static class GqlPokemonResponse {
+    private static class GqlPokemonspeciesResponse {
 
-        public GqlPokemonData data;
+        public GqlPokemonspeciesData data;
     }
 
-    private static class GqlPokemonData {
+    private static class GqlPokemonspeciesData {
 
-        public List<GqlPokemon> pokemon;
-    } // SIN PREFIJO
+        public List<GqlPokemonspecies> pokemonspecies;
+    }
 
-    public static class GqlPokemon {
+    public static class GqlPokemonspecies {
 
         public String name;
-        public List<GqlPokemonStat> pokemonstats; // SIN PREFIJO
-        public List<GqlPokemonType> pokemontypes; // SIN PREFIJO
-        public List<GqlPokemonAbility> pokemonabilities; // SIN PREFIJO
-        public List<GqlPokemonMove> pokemonmoves; // SIN PREFIJO
+        public List<GqlPokemonInstance> pokemons;
+    }
+
+    // --- DTOs para Instancias de Pokémon (Links) ---
+    public static class GqlPokemonInstance {
+
+        public List<GqlPokemonStat> stats;
+        public List<GqlPokemonTypeLink> types;
+        public List<GqlAbilityLink> abilities;
+        public List<GqlMoveLink> moves;
     }
 
     public static class GqlPokemonStat {
 
         public int base_stat;
-        public GqlStatName stat; // SIN PREFIJO
+        public GqlStatName stat;
     }
 
     public static class GqlStatName {
@@ -156,27 +163,29 @@ public class PokeApiIngestionService {
         public String name;
     }
 
-    public static class GqlPokemonType {
+    public static class GqlPokemonTypeLink {
 
         public GqlTypeName type;
-    } // SIN PREFIJO
+    }
 
-    public static class GqlPokemonAbility {
+    public static class GqlAbilityLink {
 
         public GqlTypeName ability;
-    } // SIN PREFIJO
+    }
 
-    public static class GqlPokemonMove {
+    public static class GqlMoveLink {
 
         public GqlTypeName move;
-    } // SIN PREFIJO
+    }
 
     /**
      * Ejecuta una consulta GraphQL genérica.
      */
     private <T> Mono<T> executeGqlQuery(String query, Class<T> responseClass) {
+        // CORRECCIÓN: Usar el GqlPayload completo
         return pokeApiWebClient.post()
-                .bodyValue(new GqlQuery(query))
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(new GqlPayload(query)) // <-- CORREGIDO
                 .retrieve()
                 .bodyToMono(responseClass)
                 .doOnError(e -> log.error("Error al ejecutar consulta GraphQL: {}", e.getMessage()));
@@ -187,35 +196,34 @@ public class PokeApiIngestionService {
      */
     @Transactional
     public Mono<Void> ingestTypes() {
-        log.info("Iniciando ingesta de Tipos...");
-        // Consulta GraphQL actualizada para v1beta2 (sin prefijos)
+        log.info("Iniciando ingesta de Tipos (v1beta2)...");
         String query = """
             query {
-              type {
+              pokemontype {
                 name
               }
             }
         """;
-        return executeGqlQuery(query, GqlTypeResponse.class)
+        return executeGqlQuery(query, GqlTypeDefinitionResponse.class)
                 .flatMapMany(response -> {
-                    // CORRECCIÓN: Comprobar si la respuesta o los datos son nulos
+                    // ESTA ES LA LÍNEA QUE ESTÁ FALLANDO
                     if (response == null || response.data == null) {
                         log.error("Respuesta de API (Tipos) nula o inválida.");
                         return Flux.empty();
                     }
-                    // CORRECCIÓN: Comprobar si la lista de tipos es nula
-                    List<GqlType> types = response.data.type;
+                    List<GqlTypeDefinition> types = response.data.pokemontype;
                     if (types == null) {
                         log.warn("La API de Tipos devolvió datos, pero la lista de tipos era nula.");
                         return Flux.empty();
                     }
-                    return Flux.fromIterable(types); // Actualizado
+                    return Flux.fromIterable(types);
                 })
                 .map(gqlType -> StaticTypeData.builder().name(gqlType.name).build())
                 .collectList()
                 .doOnNext(typeRepository::saveAll)
                 .doOnNext(savedTypes -> {
                     log.info("Guardados {} tipos en la BD.", savedTypes.size());
+                    typeCache.clear();
                     savedTypes.forEach(type -> typeCache.put(type.getName(), type));
                 })
                 .then();
@@ -226,38 +234,33 @@ public class PokeApiIngestionService {
      */
     @Transactional
     public Mono<Void> ingestAbilities() {
-        log.info("Iniciando ingesta de Habilidades...");
-        // Consulta GraphQL actualizada para v1beta2 (sin prefijos)
-        // language_id 9 es Inglés
+        log.info("Iniciando ingesta de Habilidades (v1beta2)...");
         String query = """
             query {
-              ability(limit: 370) {
+              pokemonability(limit: 370) {
                 name
-                abilityeffecttexts(where: {language_id: {_eq: 9}}) {
+                effect_entries(where: {language_id: {_eq: 9}}) {
                   effect
                 }
               }
             }
         """;
-        return executeGqlQuery(query, GqlAbilityResponse.class)
+        return executeGqlQuery(query, GqlAbilityDefinitionResponse.class)
                 .flatMapMany(response -> {
-                    // CORRECCIÓN: Comprobar si la respuesta o los datos son nulos
                     if (response == null || response.data == null) {
                         log.error("Respuesta de API (Habilidades) nula o inválida.");
                         return Flux.empty();
                     }
-                    // CORRECCIÓN: Comprobar si la lista de habilidades es nula
-                    List<GqlAbility> abilities = response.data.ability;
+                    List<GqlAbilityDefinition> abilities = response.data.pokemonability;
                     if (abilities == null) {
                         log.warn("La API de Habilidades devolvió datos, pero la lista de habilidades era nula.");
                         return Flux.empty();
                     }
-                    return Flux.fromIterable(abilities); // Actualizado
+                    return Flux.fromIterable(abilities);
                 })
                 .map(gqlAbility -> {
-                    // CORRECCIÓN: Comprobar si la lista de efectos es nula o está vacía
-                    String effect = (gqlAbility.abilityeffecttexts == null || gqlAbility.abilityeffecttexts.isEmpty())
-                            ? "No effect text." : gqlAbility.abilityeffecttexts.get(0).effect;
+                    String effect = (gqlAbility.effect_entries == null || gqlAbility.effect_entries.isEmpty())
+                            ? "No effect text." : gqlAbility.effect_entries.get(0).effect;
 
                     return StaticAbilityData.builder()
                             .name(gqlAbility.name)
@@ -268,6 +271,7 @@ public class PokeApiIngestionService {
                 .doOnNext(abilityRepository::saveAll)
                 .doOnNext(savedAbilities -> {
                     log.info("Guardadas {} habilidades en la BD.", savedAbilities.size());
+                    abilityCache.clear();
                     savedAbilities.forEach(ability -> abilityCache.put(ability.getName(), ability));
                 })
                 .then();
@@ -278,50 +282,56 @@ public class PokeApiIngestionService {
      */
     @Transactional
     public Mono<Void> ingestMoves() {
-        log.info("Iniciando ingesta de Movimientos...");
-        // Consulta GraphQL actualizada para v1beta2 (sin prefijos)
+        log.info("Iniciando ingesta de Movimientos (v1beta2)...");
         String query = """
             query {
-              move(limit: 950) {
+              pokemonmove(limit: 950) {
                 name
                 power
                 accuracy
                 pp
                 priority
-                movedamageclass { name }
+                move_damage_class { name }
                 type { name }
               }
             }
         """;
-        return executeGqlQuery(query, GqlMoveResponse.class)
+        return executeGqlQuery(query, GqlMoveDefinitionResponse.class)
                 .flatMapMany(response -> {
-                    // CORRECCIÓN: Comprobar si la respuesta o los datos son nulos
                     if (response == null || response.data == null) {
                         log.error("Respuesta de API (Movimientos) nula o inválida.");
                         return Flux.empty();
                     }
-                    // CORRECCIÓN: Comprobar si la lista de movimientos es nula
-                    List<GqlMove> moves = response.data.move;
+                    List<GqlMoveDefinition> moves = response.data.pokemonmove;
                     if (moves == null) {
                         log.warn("La API de Movimientos devolvió datos, pero la lista de movimientos era nula.");
                         return Flux.empty();
                     }
-                    return Flux.fromIterable(moves); // Actualizado
+                    return Flux.fromIterable(moves);
                 })
-                .map(gqlMove -> StaticMoveData.builder()
-                .name(gqlMove.name)
-                .power(Objects.requireNonNullElse(gqlMove.power, 0))
-                .accuracy(Objects.requireNonNullElse(gqlMove.accuracy, 0))
-                .pp(Objects.requireNonNullElse(gqlMove.pp, 0))
-                .priority(Objects.requireNonNullElse(gqlMove.priority, 0))
-                // CORRECCIÓN: Comprobar si los objetos anidados son nulos
-                .damageClass(gqlMove.movedamageclass != null ? gqlMove.movedamageclass.name : "unknown")
-                .type(typeCache.get(gqlMove.type != null ? gqlMove.type.name : null))
-                .build())
+                .map(gqlMove -> {
+                    StaticTypeData moveType = typeCache.get(gqlMove.type != null ? gqlMove.type.name : null);
+                    if (moveType == null) {
+                        log.warn("No se encontró el tipo '{}' en caché para el movimiento '{}'.", gqlMove.type.name, gqlMove.name);
+                        return null;
+                    }
+
+                    return StaticMoveData.builder()
+                            .name(gqlMove.name)
+                            .power(Objects.requireNonNullElse(gqlMove.power, 0))
+                            .accuracy(Objects.requireNonNullElse(gqlMove.accuracy, 0))
+                            .pp(Objects.requireNonNullElse(gqlMove.pp, 0))
+                            .priority(Objects.requireNonNullElse(gqlMove.priority, 0))
+                            .damageClass(gqlMove.move_damage_class != null ? gqlMove.move_damage_class.name : "unknown")
+                            .type(moveType)
+                            .build();
+                })
+                .filter(Objects::nonNull)
                 .collectList()
                 .doOnNext(moveRepository::saveAll)
                 .doOnNext(savedMoves -> {
                     log.info("Guardados {} movimientos en la BD.", savedMoves.size());
+                    moveCache.clear();
                     savedMoves.forEach(move -> moveCache.put(move.getName(), move));
                 })
                 .then();
@@ -332,74 +342,75 @@ public class PokeApiIngestionService {
      */
     @Transactional
     public Mono<Void> ingestPokemon() {
-        log.info("Iniciando ingesta de Pokémon (1-151)...");
-        // Consulta GraphQL actualizada para v1beta2 (sin prefijos)
+        log.info("Iniciando ingesta de Pokémon (1-151) (v1beta2)...");
         String query = """
             query {
-              pokemon(limit: 151, order_by: {id: asc}) {
+              pokemonspecies(limit: 151, order_by: {id: asc}) {
                 name
-                pokemonstats {
-                  base_stat
-                  stat { name }
-                }
-                pokemontypes {
-                  type { name }
-                }
-                pokemonabilities {
-                  ability { name }
-                }
-                pokemonmoves(limit: 50) {
-                  move { name }
+                pokemons(limit: 1) {
+                  stats {
+                    base_stat
+                    stat { name }
+                  }
+                  types {
+                    type { name }
+                  }
+                  abilities {
+                    ability { name }
+                  }
+                  moves(limit: 50) {
+                    move { name }
+                  }
                 }
               }
             }
         """;
-        return executeGqlQuery(query, GqlPokemonResponse.class)
+        return executeGqlQuery(query, GqlPokemonspeciesResponse.class)
                 .flatMapMany(response -> {
-                    // CORRECCIÓN: Comprobar si la respuesta o los datos son nulos
                     if (response == null || response.data == null) {
                         log.error("Respuesta de API (Pokemon) nula o inválida.");
                         return Flux.empty();
                     }
-                    // CORRECCIÓN: Comprobar si la lista de pokémon es nula
-                    List<GqlPokemon> pokemonList = response.data.pokemon;
+                    List<GqlPokemonspecies> pokemonList = response.data.pokemonspecies;
                     if (pokemonList == null) {
                         log.warn("La API de Pokémon devolvió datos, pero la lista de pokémon era nula.");
                         return Flux.empty();
                     }
-                    return Flux.fromIterable(pokemonList); // Actualizado
+                    return Flux.fromIterable(pokemonList);
                 })
-                .map(gqlPokemon -> {
-                    // CORRECCIÓN: Comprobar si las listas internas son nulas antes de hacer stream()
-                    Map<String, Integer> stats = (gqlPokemon.pokemonstats == null) ? Collections.emptyMap()
-                            : gqlPokemon.pokemonstats.stream()
-                                    .filter(s -> s.stat != null) // Asegura que el stat interno no sea nulo
+                .map(gqlSpecies -> {
+                    if (gqlSpecies.pokemons == null || gqlSpecies.pokemons.isEmpty()) {
+                        log.warn("Species {} no tiene instancia 'pokemon', saltando.", gqlSpecies.name);
+                        return null;
+                    }
+
+                    GqlPokemonInstance instance = gqlSpecies.pokemons.get(0);
+
+                    Map<String, Integer> stats = (instance.stats == null) ? Collections.emptyMap()
+                            : instance.stats.stream()
+                                    .filter(s -> s.stat != null)
                                     .collect(Collectors.toMap(s -> s.stat.name, s -> s.base_stat));
 
-                    Set<StaticTypeData> types = (gqlPokemon.pokemontypes == null) ? Collections.emptySet()
-                            : gqlPokemon.pokemontypes.stream()
-                                    .filter(t -> t.type != null) // Asegura que el tipo interno no sea nulo
+                    Set<StaticTypeData> types = (instance.types == null) ? Collections.emptySet()
+                            : instance.types.stream()
+                                    .filter(t -> t.type != null && typeCache.containsKey(t.type.name))
                                     .map(t -> typeCache.get(t.type.name))
-                                    .filter(Objects::nonNull)
                                     .collect(Collectors.toSet());
 
-                    Set<StaticAbilityData> abilities = (gqlPokemon.pokemonabilities == null) ? Collections.emptySet()
-                            : gqlPokemon.pokemonabilities.stream()
-                                    .filter(a -> a.ability != null) // Asegura que la habilidad interna no sea nula
+                    Set<StaticAbilityData> abilities = (instance.abilities == null) ? Collections.emptySet()
+                            : instance.abilities.stream()
+                                    .filter(a -> a.ability != null && abilityCache.containsKey(a.ability.name))
                                     .map(a -> abilityCache.get(a.ability.name))
-                                    .filter(Objects::nonNull)
                                     .collect(Collectors.toSet());
 
-                    Set<StaticMoveData> moves = (gqlPokemon.pokemonmoves == null) ? Collections.emptySet()
-                            : gqlPokemon.pokemonmoves.stream()
-                                    .filter(m -> m.move != null) // Asegura que el movimiento interno no sea nulo
+                    Set<StaticMoveData> moves = (instance.moves == null) ? Collections.emptySet()
+                            : instance.moves.stream()
+                                    .filter(m -> m.move != null && moveCache.containsKey(m.move.name))
                                     .map(m -> moveCache.get(m.move.name))
-                                    .filter(Objects::nonNull)
                                     .collect(Collectors.toSet());
 
-                    // Construye la entidad JPA
                     return StaticPokemonData.builder()
-                            .name(gqlPokemon.name)
+                            .name(gqlSpecies.name)
                             .baseHp(stats.getOrDefault("hp", 0))
                             .baseAttack(stats.getOrDefault("attack", 0))
                             .baseDefense(stats.getOrDefault("defense", 0))
@@ -411,6 +422,7 @@ public class PokeApiIngestionService {
                             .moves(moves)
                             .build();
                 })
+                .filter(Objects::nonNull)
                 .collectList()
                 .doOnNext(pokemonRepository::saveAll)
                 .doOnNext(savedPokemon -> log.info("Guardados {} Pokémon en la BD.", savedPokemon.size()))
@@ -422,70 +434,60 @@ public class PokeApiIngestionService {
      */
     @Transactional
     public Mono<Void> ingestTypeDamageRelations() {
-        log.info("Iniciando ingesta de Relaciones de Daño de Tipos...");
-        // Consulta GraphQL actualizada para v1beta2 (sin prefijos)
+        log.info("Iniciando ingesta de Relaciones de Daño de Tipos (v1beta2)...");
+
         String query = """
             query {
-              type {
+              pokemontype {
                 name
-                typedamagerelations {
+                type_efficacies {
                   damage_factor
-                  type { name }
+                  target_type { name }
                 }
               }
             }
         """;
-        return executeGqlQuery(query, GqlTypeResponse.class)
-                .flatMapMany(response -> {
-                    // CORRECCIÓN: Comprobar si la respuesta o los datos son nulos
-                    if (response == null || response.data == null) {
+
+        return executeGqlQuery(query, GqlTypeDefinitionResponse.class)
+                .map(response -> {
+                    if (response == null || response.data == null || response.data.pokemontype == null) {
                         log.error("Respuesta de API (Relaciones de Tipos) nula o inválida.");
-                        return Flux.empty();
+                        return Collections.<GqlTypeDefinition>emptyList();
                     }
-                    // CORRECCIÓN: Comprobar si la lista de tipos es nula
-                    List<GqlType> types = response.data.type;
-                    if (types == null) {
-                        log.warn("La API de Relaciones de Tipos devolvió datos, pero la lista de tipos era nula.");
-                        return Flux.empty();
-                    }
-                    return Flux.fromIterable(types); // Actualizado
+                    return response.data.pokemontype;
                 })
-                .map(gqlType -> {
-                    StaticTypeData type = typeCache.get(gqlType.name);
-                    if (type == null) {
-                        return null;
-                    }
-
-                    // CORRECCIÓN: Comprobar si la lista de relaciones es nula
-                    if (gqlType.typedamagerelations == null) {
-                        return type; // No hay relaciones para este tipo
-                    }
-
-                    for (GqlTypeDamage relation : gqlType.typedamagerelations) { // Actualizado
-                        // CORRECCIÓN: Comprobar si la relación interna o el tipo son nulos
-                        if (relation == null || relation.type == null) {
-                            continue;
-                        }
-                        StaticTypeData otherType = typeCache.get(relation.type.name);
-                        if (otherType == null) {
+                .flatMap(allTypeDefs -> {
+                    for (GqlTypeDefinition attackingTypeGql : allTypeDefs) {
+                        StaticTypeData attackingType = typeCache.get(attackingTypeGql.name);
+                        if (attackingType == null || attackingTypeGql.type_efficacies == null) {
                             continue;
                         }
 
-                        // La API v1beta2 devuelve 'damage_factor' como int: 200, 50, 0
-                        if (relation.damage_factor == 200) { // Double damage FROM
-                            type.getDoubleDamageFrom().add(otherType);
-                        } else if (relation.damage_factor == 50) { // Half damage FROM
-                            type.getHalfDamageFrom().add(otherType);
-                        } else if (relation.damage_factor == 0) { // No damage FROM
-                            type.getNoDamageFrom().add(otherType);
+                        for (GqlTypeDamage efficacy : attackingTypeGql.type_efficacies) {
+                            if (efficacy == null || efficacy.target_type == null) {
+                                continue;
+                            }
+
+                            StaticTypeData targetType = typeCache.get(efficacy.target_type.name);
+                            if (targetType == null) {
+                                continue;
+                            }
+
+                            if (efficacy.damage_factor == 200) {
+                                targetType.getDoubleDamageFrom().add(attackingType);
+                            } else if (efficacy.damage_factor == 50) {
+                                targetType.getHalfDamageFrom().add(attackingType);
+                            } else if (efficacy.damage_factor == 0) {
+                                targetType.getNoDamageFrom().add(attackingType);
+                            }
                         }
                     }
-                    return type;
+
+                    return Flux.fromIterable(typeCache.values())
+                            .collectList()
+                            .doOnNext(typeRepository::saveAll)
+                            .doOnNext(savedTypes -> log.info("Actualizadas las relaciones de daño (invertidas) para {} tipos.", savedTypes.size()));
                 })
-                .filter(Objects::nonNull)
-                .collectList()
-                .doOnNext(typeRepository::saveAll)
-                .doOnNext(savedTypes -> log.info("Actualizadas las relaciones de daño para {} tipos.", savedTypes.size()))
                 .then();
     }
 }
