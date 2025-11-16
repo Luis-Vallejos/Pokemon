@@ -9,6 +9,10 @@ import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+/**
+ *
+ * @author Luis
+ */
 @Configuration
 public class WebClientConfig {
 
@@ -22,14 +26,12 @@ public class WebClientConfig {
     public WebClient pokeApiWebClient(WebClient.Builder builder) {
         return builder
                 .baseUrl(pokeApiBaseUri)
-                // AÑADIMOS ESTOS FILTROS DE LOGGING
                 .filter(logRequest())
-                .filter(logResponse())
+                .filter(logResponse()) // Usamos la versión de DEBUG TOTAL
                 .build();
     }
 
     // Este método registra la solicitud (qué estamos enviando)
-    // CORREGIDO: Eliminada la parte del "body" que causaba el error
     private ExchangeFilterFunction logRequest() {
         return ExchangeFilterFunction.ofRequestProcessor(clientRequest -> {
             log.info(">>> API REQUEST: {} {}", clientRequest.method(), clientRequest.url());
@@ -38,16 +40,25 @@ public class WebClientConfig {
         });
     }
 
-    // Este método registra la respuesta (qué nos está devolviendo)
+    // --- MODO DEBUG TOTAL ---
     private ExchangeFilterFunction logResponse() {
         return ExchangeFilterFunction.ofResponseProcessor(clientResponse -> {
             log.info("<<< API RESPONSE: Status {}", clientResponse.statusCode());
-            // Para ver el cuerpo del error, necesitamos clonarlo
+
+            // Clonamos la respuesta para leer el body
             return clientResponse.bodyToMono(String.class)
+                    // Usamos .flatMap() para asegurar que el body se procese
                     .flatMap(body -> {
-                        log.info("<<< API BODY: {}", body); // ¡AQUÍ ESTARÁ EL ERROR!
-                        // Devolvemos la respuesta original para que la aplicación continúe
+                        // ¡ESTE ES EL LOG QUE NECESITAMOS VER!
+                        log.info("<<< API BODY: {}", body);
+
+                        // Devolvemos la respuesta original con el body "recargado"
                         return Mono.just(clientResponse.mutate().body(body).build());
+                    })
+                    // Agregamos un .onErrorResume por si el body está vacío
+                    .onErrorResume(e -> {
+                        log.error("<<< No se pudo leer el body de la respuesta: {}", e.getMessage());
+                        return Mono.just(clientResponse); // Devuelve la respuesta original sin body
                     });
         });
     }
