@@ -37,6 +37,7 @@ public class PokeApiIngestionService {
     private final StaticTypeDataRepository typeRepository;
     private final StaticAbilityDataRepository abilityRepository;
 
+    // Caches internos
     private final Map<String, StaticTypeData> typeCache = new ConcurrentHashMap<>();
     private final Map<String, StaticMoveData> moveCache = new ConcurrentHashMap<>();
     private final Map<String, StaticAbilityData> abilityCache = new ConcurrentHashMap<>();
@@ -59,8 +60,7 @@ public class PokeApiIngestionService {
         public String name;
     }
 
-    // --- DTOs para Tipos (Types) ---
-    // CORREGIDO: Nombres de campos para v1beta2 (anidado)
+    // --- DTOs para Tipos (Types) - v1beta Schema ---
     public static class GqlTypeDefinitionResponse {
 
         public GqlTypeDefinitionData data;
@@ -68,29 +68,22 @@ public class PokeApiIngestionService {
 
     public static class GqlTypeDefinitionData {
 
-        public List<GqlTypeDefinition> pokemontype; // <--- Raíz v1beta2
+        public List<GqlTypeDefinition> pokemontype; // <-- Raíz v1beta
     }
 
     public static class GqlTypeDefinition {
 
-        public GqlNameWrapper pokemon_v2_type; // <--- Objeto anidado
-        public List<GqlTypeDamage> pokemon_v2_typeefficacies;
+        public String name; // <-- Campo directo en v1beta
+        public List<GqlTypeDamage> type_efficacies; // <-- Campo v1beta
     }
 
     public static class GqlTypeDamage {
 
         public int damage_factor;
-        public GqlTypeDamageTarget pokemon_v2_typetarget;
+        public GqlNameWrapper damage_type; // <-- Campo v1beta
     }
 
-    // Nivel extra de anidamiento para la relación
-    public static class GqlTypeDamageTarget {
-
-        public GqlNameWrapper pokemon_v2_type;
-    }
-
-    // --- DTOs para Habilidades (Abilities) ---
-    // CORREGIDO: Nombres de campos para v1beta2 (anidado)
+    // --- DTOs para Habilidades (Abilities) - v1beta Schema ---
     public static class GqlAbilityDefinitionResponse {
 
         public GqlAbilityDefinitionData data;
@@ -98,13 +91,13 @@ public class PokeApiIngestionService {
 
     public static class GqlAbilityDefinitionData {
 
-        public List<GqlAbilityDefinition> pokemonability; // <--- Raíz v1beta2
+        public List<GqlAbilityDefinition> pokemonability; // <-- Raíz v1beta
     }
 
     public static class GqlAbilityDefinition {
 
-        public GqlNameWrapper pokemon_v2_ability; // <--- Objeto anidado
-        public List<GqlAbilityEffect> pokemon_v2_abilityeffecttexts;
+        public String name; // <-- Campo directo en v1beta
+        public List<GqlAbilityEffect> ability_effects; // <-- Campo v1beta
     }
 
     public static class GqlAbilityEffect {
@@ -112,8 +105,7 @@ public class PokeApiIngestionService {
         public String effect;
     }
 
-    // --- DTOs para Movimientos (Moves) ---
-    // CORREGIDO: Nombres de campos para v1beta2 (anidado)
+    // --- DTOs para Movimientos (Moves) - v1beta Schema ---
     public static class GqlMoveDefinitionResponse {
 
         public GqlMoveDefinitionData data;
@@ -121,27 +113,21 @@ public class PokeApiIngestionService {
 
     public static class GqlMoveDefinitionData {
 
-        public List<GqlMoveDefinition> pokemonmove; // <--- Raíz v1beta2
+        public List<GqlMoveDefinition> pokemonmove; // <-- Raíz v1beta
     }
 
     public static class GqlMoveDefinition {
-
-        public GqlMoveDetails pokemon_v2_move; // <--- Objeto anidado
-        public GqlNameWrapper pokemon_v2_movedamageclass;
-        public GqlNameWrapper pokemon_v2_type;
-    }
-
-    public static class GqlMoveDetails {
 
         public String name;
         public Integer power;
         public Integer accuracy;
         public Integer pp;
         public Integer priority;
+        public GqlNameWrapper move_damage_class; // <-- Campo v1beta
+        public GqlNameWrapper type; // <-- Campo v1beta
     }
 
-    // --- DTOs para Pokémon ---
-    // CORREGIDO: Nombres de campos para v1beta2 (anidado)
+    // --- DTOs para Pokémon - v1beta Schema ---
     public static class GqlPokemonspeciesResponse {
 
         public GqlPokemonspeciesData data;
@@ -149,51 +135,88 @@ public class PokeApiIngestionService {
 
     public static class GqlPokemonspeciesData {
 
-        public List<GqlPokemonspecies> pokemonspecies; // <--- Raíz v1beta2
+        public List<GqlPokemonspecies> pokemonspecies; // <-- Raíz v1beta
     }
 
     public static class GqlPokemonspecies {
 
-        public String name; // 'name' está en la raíz de species, pero el resto no
-        public List<GqlPokemonInstance> pokemon_v2_pokemons;
+        public String name;
+        public List<GqlPokemonInstance> pokemons; // <-- Campo v1beta
     }
 
-    // --- DTOs para Instancias de Pokémon (Links) ---
-    // CORREGIDO: Nombres de campos para v1beta2 (anidado)
+    // --- DTOs para Instancias de Pokémon (Links) - v1beta Schema ---
     public static class GqlPokemonInstance {
 
-        public List<GqlPokemonStat> pokemon_v2_pokemonstats;
-        public List<GqlPokemonTypeLink> pokemon_v2_pokemontypes;
-        public List<GqlAbilityLink> pokemon_v2_pokemonabilities;
-        public List<GqlMoveLink> pokemon_v2_pokemonmoves;
+        public List<GqlPokemonStat> stats; // <-- Campo v1beta
+        public List<GqlPokemonTypeLink> types; // <-- Campo v1beta
+        public List<GqlAbilityLink> abilities; // <-- Campo v1beta
+        public List<GqlMoveLink> moves; // <-- Campo v1beta
     }
 
     public static class GqlPokemonStat {
 
         public int base_stat;
-        public GqlStatNameWrapper pokemon_v2_stat;
-    }
-
-    public static class GqlStatNameWrapper {
-        // public GqlNameWrapper pokemon_v2_stat; // v1beta2 es absurdamente anidado
-
-        public String name; // El stat 'name' SÍ está aquí
+        public GqlNameWrapper stat; // <-- Campo v1beta
     }
 
     public static class GqlPokemonTypeLink {
 
-        public GqlNameWrapper pokemon_v2_type;
+        public GqlNameWrapper type; // <-- Campo v1beta
     }
 
     public static class GqlAbilityLink {
 
-        public GqlNameWrapper pokemon_v2_ability;
+        public GqlNameWrapper ability; // <-- Campo v1beta
     }
 
     public static class GqlMoveLink {
 
-        public GqlNameWrapper pokemon_v2_move;
+        public GqlNameWrapper move; // <-- Campo v1beta
     }
+
+    // --- (INICIO) MÉTODOS PARA CARGAR CACHÉ ---
+    @Transactional(readOnly = true)
+    public Mono<Void> loadTypeCache() {
+        return Mono.fromRunnable(() -> {
+            if (typeCache.isEmpty()) {
+                log.info("Cargando TypeCache desde la BD...");
+                typeCache.clear();
+                typeRepository.findAll().forEach(type -> typeCache.put(type.getName(), type));
+                log.info("TypeCache cargado con {} entradas.", typeCache.size());
+            } else {
+                log.info("TypeCache ya estaba cargado.");
+            }
+        });
+    }
+
+    @Transactional(readOnly = true)
+    public Mono<Void> loadAbilityCache() {
+        return Mono.fromRunnable(() -> {
+            if (abilityCache.isEmpty()) {
+                log.info("Cargando AbilityCache desde la BD...");
+                abilityCache.clear();
+                abilityRepository.findAll().forEach(ability -> abilityCache.put(ability.getName(), ability));
+                log.info("AbilityCache cargado con {} entradas.", abilityCache.size());
+            } else {
+                log.info("AbilityCache ya estaba cargado.");
+            }
+        });
+    }
+
+    @Transactional(readOnly = true)
+    public Mono<Void> loadMoveCache() {
+        return Mono.fromRunnable(() -> {
+            if (moveCache.isEmpty()) {
+                log.info("Cargando MoveCache desde la BD...");
+                moveCache.clear();
+                moveRepository.findAll().forEach(move -> moveCache.put(move.getName(), move));
+                log.info("MoveCache cargado con {} entradas.", moveCache.size());
+            } else {
+                log.info("MoveCache ya estaba cargado.");
+            }
+        });
+    }
+    // --- (FIN) MÉTODOS PARA CARGAR CACHÉ ---
 
     /**
      * Ejecuta una consulta GraphQL genérica.
@@ -215,18 +238,16 @@ public class PokeApiIngestionService {
     }
 
     /**
-     * Tarea 1: Descarga y guarda los 18 tipos de Pokémon.
+     * Tarea 1: Descarga y guarda los 18 tipos de Pokémon. (v1beta Schema)
      */
     @Transactional
     public Mono<Void> ingestTypes() {
-        log.info("Iniciando ingesta de Tipos (v1beta2)..."); // <-- LOG CORREGIDO
-        // CORREGIDO: Query para v1beta2 (anidado)
+        log.info("Iniciando ingesta de Tipos (esquema v1beta)...");
+        // CORREGIDO: Query para v1beta
         String query = """
             query {
               pokemontype {
-                pokemon_v2_type {
-                  name
-                }
+                name
               }
             }
         """;
@@ -236,21 +257,14 @@ public class PokeApiIngestionService {
                         log.error("Respuesta de API (Tipos) nula o inválida.");
                         return Flux.empty();
                     }
-                    List<GqlTypeDefinition> types = response.data.pokemontype; // <--- Raíz v1beta2
+                    List<GqlTypeDefinition> types = response.data.pokemontype; // <-- Raíz v1beta
                     if (types == null) {
                         log.warn("La API de Tipos devolvió datos, pero la lista de tipos era nula.");
                         return Flux.empty();
                     }
                     return Flux.fromIterable(types);
                 })
-                // CORREGIDO: Acceder al nombre anidado
-                .map(gqlType -> {
-                    if (gqlType.pokemon_v2_type == null) {
-                        log.warn("Se encontró un 'pokemontype' sin 'pokemon_v2_type' anidado.");
-                        return null;
-                    }
-                    return StaticTypeData.builder().name(gqlType.pokemon_v2_type.name).build();
-                })
+                .map(gqlType -> StaticTypeData.builder().name(gqlType.name).build())
                 .filter(Objects::nonNull)
                 .collectList()
                 .doOnNext(typeRepository::saveAll)
@@ -263,19 +277,17 @@ public class PokeApiIngestionService {
     }
 
     /**
-     * Tarea 2: Descarga y guarda todas las habilidades.
+     * Tarea 2: Descarga y guarda todas las habilidades. (v1beta Schema)
      */
     @Transactional
     public Mono<Void> ingestAbilities() {
-        log.info("Iniciando ingesta de Habilidades (v1beta2)..."); // <-- LOG CORREGIDO
-        // CORREGIDO: Query para v1beta2 (anidado)
+        log.info("Iniciando ingesta de Habilidades (esquema v1beta)...");
+        // CORREGIDO: Query para v1beta
         String query = """
             query {
               pokemonability(limit: 370) {
-                pokemon_v2_ability {
-                  name
-                }
-                pokemon_v2_abilityeffecttexts(where: {language_id: {_eq: 9}}) {
+                name
+                ability_effects(where: {language_id: {_eq: 9}}) {
                   effect
                 }
               }
@@ -287,7 +299,7 @@ public class PokeApiIngestionService {
                         log.error("Respuesta de API (Habilidades) nula o inválida.");
                         return Flux.empty();
                     }
-                    List<GqlAbilityDefinition> abilities = response.data.pokemonability; // <--- Raíz v1beta2
+                    List<GqlAbilityDefinition> abilities = response.data.pokemonability; // <-- Raíz v1beta
                     if (abilities == null) {
                         log.warn("La API de Habilidades devolvió datos, pero la lista de habilidades era nula.");
                         return Flux.empty();
@@ -295,18 +307,11 @@ public class PokeApiIngestionService {
                     return Flux.fromIterable(abilities);
                 })
                 .map(gqlAbility -> {
-                    // CORREGIDO: Acceder a campos anidados
-                    String effect = (gqlAbility.pokemon_v2_abilityeffecttexts == null || gqlAbility.pokemon_v2_abilityeffecttexts.isEmpty())
-                            ? "No effect text." : gqlAbility.pokemon_v2_abilityeffecttexts.get(0).effect;
-
-                    if (gqlAbility.pokemon_v2_ability == null) {
-                        log.warn("Se encontró un 'pokemonability' sin 'pokemon_v2_ability' anidado.");
-                        return null;
-                    }
-                    String name = gqlAbility.pokemon_v2_ability.name;
+                    String effect = (gqlAbility.ability_effects == null || gqlAbility.ability_effects.isEmpty())
+                            ? "No effect text." : gqlAbility.ability_effects.get(0).effect;
 
                     return StaticAbilityData.builder()
-                            .name(name)
+                            .name(gqlAbility.name)
                             .description(effect)
                             .build();
                 })
@@ -322,26 +327,24 @@ public class PokeApiIngestionService {
     }
 
     /**
-     * Tarea 3: Descarga y guarda todos los movimientos.
+     * Tarea 3: Descarga y guarda todos los movimientos. (v1beta Schema)
      */
     @Transactional
     public Mono<Void> ingestMoves() {
-        log.info("Iniciando ingesta de Movimientos (v1beta2)..."); // <-- LOG CORREGIDO
-        // CORREGIDO: Query para v1beta2 (anidado)
+        log.info("Iniciando ingesta de Movimientos (esquema v1beta)...");
+        // CORREGIDO: Query para v1beta
         String query = """
             query {
               pokemonmove(limit: 950) {
-                pokemon_v2_move {
-                  name
-                  power
-                  accuracy
-                  pp
-                  priority
-                }
-                pokemon_v2_movedamageclass {
+                name
+                power
+                accuracy
+                pp
+                priority
+                move_damage_class {
                   name
                 }
-                pokemon_v2_type {
+                type {
                   name
                 }
               }
@@ -353,7 +356,7 @@ public class PokeApiIngestionService {
                         log.error("Respuesta de API (Movimientos) nula o inválida.");
                         return Flux.empty();
                     }
-                    List<GqlMoveDefinition> moves = response.data.pokemonmove; // <--- Raíz v1beta2
+                    List<GqlMoveDefinition> moves = response.data.pokemonmove; // <-- Raíz v1beta
                     if (moves == null) {
                         log.warn("La API de Movimientos devolvió datos, pero la lista de movimientos era nula.");
                         return Flux.empty();
@@ -361,30 +364,22 @@ public class PokeApiIngestionService {
                     return Flux.fromIterable(moves);
                 })
                 .map(gqlMove -> {
-                    // CORREGIDO: Acceder a campos anidados
-                    StaticTypeData moveType = typeCache.get(gqlMove.pokemon_v2_type != null ? gqlMove.pokemon_v2_type.name : null);
-
-                    if (gqlMove.pokemon_v2_move == null) {
-                        log.warn("Se encontró un 'pokemonmove' sin 'pokemon_v2_move' anidado.");
-                        return null;
-                    }
+                    StaticTypeData moveType = typeCache.get(gqlMove.type != null ? gqlMove.type.name : null);
 
                     if (moveType == null) {
                         log.warn("No se encontró el tipo '{}' en caché para el movimiento '{}'.",
-                                (gqlMove.pokemon_v2_type != null ? gqlMove.pokemon_v2_type.name : "null"),
-                                gqlMove.pokemon_v2_move.name);
+                                (gqlMove.type != null ? gqlMove.type.name : "null"),
+                                gqlMove.name);
                         return null;
                     }
 
-                    GqlMoveDetails details = gqlMove.pokemon_v2_move;
-
                     return StaticMoveData.builder()
-                            .name(details.name)
-                            .power(Objects.requireNonNullElse(details.power, 0))
-                            .accuracy(Objects.requireNonNullElse(details.accuracy, 0))
-                            .pp(Objects.requireNonNullElse(details.pp, 0))
-                            .priority(Objects.requireNonNullElse(details.priority, 0))
-                            .damageClass(gqlMove.pokemon_v2_movedamageclass != null ? gqlMove.pokemon_v2_movedamageclass.name : "unknown")
+                            .name(gqlMove.name)
+                            .power(Objects.requireNonNullElse(gqlMove.power, 0))
+                            .accuracy(Objects.requireNonNullElse(gqlMove.accuracy, 0))
+                            .pp(Objects.requireNonNullElse(gqlMove.pp, 0))
+                            .priority(Objects.requireNonNullElse(gqlMove.priority, 0))
+                            .damageClass(gqlMove.move_damage_class != null ? gqlMove.move_damage_class.name : "unknown")
                             .type(moveType)
                             .build();
                 })
@@ -400,35 +395,35 @@ public class PokeApiIngestionService {
     }
 
     /**
-     * Tarea 4: Descarga y guarda los primeros 151 Pokémon (Gen 1).
+     * Tarea 4: Descarga y guarda los primeros 151 Pokémon (Gen 1). (v1beta
+     * Schema)
      */
     @Transactional
     public Mono<Void> ingestPokemon() {
-        log.info("Iniciando ingesta de Pokémon (1-151) (v1beta2)..."); // <-- LOG CORREGIDO
-        // CORREGIDO: Query para v1beta2 (anidado)
+        log.info("Iniciando ingesta de Pokémon (1-151) (esquema v1beta)...");
         String query = """
             query {
               pokemonspecies(limit: 151, order_by: {id: asc}) {
                 name
-                pokemon_v2_pokemons(limit: 1) {
-                  pokemon_v2_pokemonstats {
+                pokemons(limit: 1) {
+                  stats {
                     base_stat
-                    pokemon_v2_stat {
+                    stat {
                       name
                     }
                   }
-                  pokemon_v2_pokemontypes {
-                    pokemon_v2_type {
+                  types {
+                    type {
                       name
                     }
                   }
-                  pokemon_v2_pokemonabilities {
-                    pokemon_v2_ability {
+                  abilities {
+                    ability {
                       name
                     }
                   }
-                  pokemon_v2_pokemonmoves(limit: 50) {
-                    pokemon_v2_move {
+                  moves(limit: 50) {
+                    move {
                       name
                     }
                   }
@@ -442,7 +437,7 @@ public class PokeApiIngestionService {
                         log.error("Respuesta de API (Pokemon) nula o inválida.");
                         return Flux.empty();
                     }
-                    List<GqlPokemonspecies> pokemonList = response.data.pokemonspecies; // <--- Raíz v1beta2
+                    List<GqlPokemonspecies> pokemonList = response.data.pokemonspecies; // <-- Raíz v1beta
                     if (pokemonList == null) {
                         log.warn("La API de Pokémon devolvió datos, pero la lista de pokémon era nula.");
                         return Flux.empty();
@@ -450,35 +445,34 @@ public class PokeApiIngestionService {
                     return Flux.fromIterable(pokemonList);
                 })
                 .map(gqlSpecies -> {
-                    if (gqlSpecies.pokemon_v2_pokemons == null || gqlSpecies.pokemon_v2_pokemons.isEmpty()) {
+                    if (gqlSpecies.pokemons == null || gqlSpecies.pokemons.isEmpty()) {
                         log.warn("Species {} no tiene instancia 'pokemon', saltando.", gqlSpecies.name);
                         return null;
                     }
 
-                    GqlPokemonInstance instance = gqlSpecies.pokemon_v2_pokemons.get(0);
+                    GqlPokemonInstance instance = gqlSpecies.pokemons.get(0);
 
-                    // CORREGIDO: Acceder a campos anidados
-                    Map<String, Integer> stats = (instance.pokemon_v2_pokemonstats == null) ? Collections.emptyMap()
-                            : instance.pokemon_v2_pokemonstats.stream()
-                                    .filter(s -> s.pokemon_v2_stat != null)
-                                    .collect(Collectors.toMap(s -> s.pokemon_v2_stat.name, s -> s.base_stat));
+                    Map<String, Integer> stats = (instance.stats == null) ? Collections.emptyMap()
+                            : instance.stats.stream()
+                                    .filter(s -> s.stat != null)
+                                    .collect(Collectors.toMap(s -> s.stat.name, s -> s.base_stat));
 
-                    Set<StaticTypeData> types = (instance.pokemon_v2_pokemontypes == null) ? Collections.emptySet()
-                            : instance.pokemon_v2_pokemontypes.stream()
-                                    .filter(t -> t.pokemon_v2_type != null && typeCache.containsKey(t.pokemon_v2_type.name))
-                                    .map(t -> typeCache.get(t.pokemon_v2_type.name))
+                    Set<StaticTypeData> types = (instance.types == null) ? Collections.emptySet()
+                            : instance.types.stream()
+                                    .filter(t -> t.type != null && typeCache.containsKey(t.type.name))
+                                    .map(t -> typeCache.get(t.type.name))
                                     .collect(Collectors.toSet());
 
-                    Set<StaticAbilityData> abilities = (instance.pokemon_v2_pokemonabilities == null) ? Collections.emptySet()
-                            : instance.pokemon_v2_pokemonabilities.stream()
-                                    .filter(a -> a.pokemon_v2_ability != null && abilityCache.containsKey(a.pokemon_v2_ability.name))
-                                    .map(a -> abilityCache.get(a.pokemon_v2_ability.name))
+                    Set<StaticAbilityData> abilities = (instance.abilities == null) ? Collections.emptySet()
+                            : instance.abilities.stream()
+                                    .filter(a -> a.ability != null && abilityCache.containsKey(a.ability.name))
+                                    .map(a -> abilityCache.get(a.ability.name))
                                     .collect(Collectors.toSet());
 
-                    Set<StaticMoveData> moves = (instance.pokemon_v2_pokemonmoves == null) ? Collections.emptySet()
-                            : instance.pokemon_v2_pokemonmoves.stream()
-                                    .filter(m -> m.pokemon_v2_move != null && moveCache.containsKey(m.pokemon_v2_move.name))
-                                    .map(m -> moveCache.get(m.pokemon_v2_move.name))
+                    Set<StaticMoveData> moves = (instance.moves == null) ? Collections.emptySet()
+                            : instance.moves.stream()
+                                    .filter(m -> m.move != null && moveCache.containsKey(m.move.name))
+                                    .map(m -> moveCache.get(m.move.name))
                                     .collect(Collectors.toSet());
 
                     return StaticPokemonData.builder()
@@ -502,24 +496,20 @@ public class PokeApiIngestionService {
     }
 
     /**
-     * Tarea 5: Actualiza las relaciones de daño de los tipos.
+     * Tarea 5: Actualiza las relaciones de daño de los tipos. (v1beta Schema)
      */
     @Transactional
     public Mono<Void> ingestTypeDamageRelations() {
-        log.info("Iniciando ingesta de Relaciones de Daño de Tipos (v1beta2)..."); // <-- LOG CORREGIDO
-        // CORREGIDO: Query para v1beta2 (anidado)
+        log.info("Iniciando ingesta de Relaciones de Daño de Tipos (esquema v1beta)...");
+        // CORREGIDO: Query para v1beta
         String query = """
             query {
               pokemontype {
-                pokemon_v2_type {
-                  name
-                }
-                pokemon_v2_typeefficacies {
+                name
+                type_efficacies {
                   damage_factor
-                  pokemon_v2_typetarget {
-                    pokemon_v2_type {
-                      name
-                    }
+                  damage_type {
+                    name
                   }
                 }
               }
@@ -536,22 +526,18 @@ public class PokeApiIngestionService {
                 })
                 .flatMap(allTypeDefs -> {
                     for (GqlTypeDefinition attackingTypeGql : allTypeDefs) {
-                        // CORREGIDO: Acceder a campos anidados
-                        if (attackingTypeGql.pokemon_v2_type == null) {
-                            continue; // Saltar si no hay tipo
-                        }
-                        StaticTypeData attackingType = typeCache.get(attackingTypeGql.pokemon_v2_type.name);
+                        StaticTypeData attackingType = typeCache.get(attackingTypeGql.name);
 
-                        if (attackingType == null || attackingTypeGql.pokemon_v2_typeefficacies == null) {
+                        if (attackingType == null || attackingTypeGql.type_efficacies == null) {
                             continue;
                         }
 
-                        for (GqlTypeDamage efficacy : attackingTypeGql.pokemon_v2_typeefficacies) {
-                            if (efficacy == null || efficacy.pokemon_v2_typetarget == null || efficacy.pokemon_v2_typetarget.pokemon_v2_type == null) {
+                        for (GqlTypeDamage efficacy : attackingTypeGql.type_efficacies) {
+                            if (efficacy == null || efficacy.damage_type == null) {
                                 continue;
                             }
 
-                            StaticTypeData targetType = typeCache.get(efficacy.pokemon_v2_typetarget.pokemon_v2_type.name);
+                            StaticTypeData targetType = typeCache.get(efficacy.damage_type.name);
                             if (targetType == null) {
                                 continue;
                             }
