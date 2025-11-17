@@ -1,6 +1,7 @@
 package com.pokemon.game.model;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.pokemon.game.util.Enums;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -38,7 +39,7 @@ public class GameLobby {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private GameStatus status;
+    private Enums.GameStatus status;
 
     @Column(nullable = false)
     private boolean isPublic;
