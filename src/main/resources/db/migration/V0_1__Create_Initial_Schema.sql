@@ -25,7 +25,7 @@ CREATE TABLE game_lobbies (
 CREATE TABLE players (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL UNIQUE,
-    game_lobby_id CHAR(36) NOT NULL,
+    game_lobby_id CHAR(36) NULL,
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (game_lobby_id) REFERENCES game_lobbies(id)
 );

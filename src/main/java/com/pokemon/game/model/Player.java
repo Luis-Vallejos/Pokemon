@@ -48,7 +48,7 @@ public class Player {
 
     @JsonBackReference
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "game_lobby_id", nullable = false)
+    @JoinColumn(name = "game_lobby_id")
     private GameLobby gameLobby;
 
     @JsonManagedReference

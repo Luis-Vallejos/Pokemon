@@ -60,7 +60,7 @@ public class PokeApiIngestionService {
         public String name;
     }
 
-    // --- DTOs para Tipos (Types) - v1beta Schema ---
+    // --- DTOs para Tipos (Types) - (Actualizado a v2) ---
     public static class GqlTypeDefinitionResponse {
 
         public GqlTypeDefinitionData data;
@@ -68,22 +68,22 @@ public class PokeApiIngestionService {
 
     public static class GqlTypeDefinitionData {
 
-        public List<GqlTypeDefinition> pokemontype; // <-- Raíz v1beta
+        public List<GqlTypeDefinition> pokemon_v2_type; // <-- CORREGIDO
     }
 
     public static class GqlTypeDefinition {
 
-        public String name; // <-- Campo directo en v1beta
-        public List<GqlTypeDamage> type_efficacies; // <-- Campo v1beta
+        public String name;
+        public List<GqlTypeDamage> type_efficacies; // <-- (pokemon_v2_typeefficacy)
     }
 
     public static class GqlTypeDamage {
 
         public int damage_factor;
-        public GqlNameWrapper damage_type; // <-- Campo v1beta
+        public GqlNameWrapper damage_type; // <-- (pokemon_v2_type)
     }
 
-    // --- DTOs para Habilidades (Abilities) - v1beta Schema ---
+    // --- DTOs para Habilidades (Abilities) - (Actualizado a v2) ---
     public static class GqlAbilityDefinitionResponse {
 
         public GqlAbilityDefinitionData data;
@@ -91,13 +91,13 @@ public class PokeApiIngestionService {
 
     public static class GqlAbilityDefinitionData {
 
-        public List<GqlAbilityDefinition> pokemonability; // <-- Raíz v1beta
+        public List<GqlAbilityDefinition> pokemon_v2_ability; // <-- CORREGIDO
     }
 
     public static class GqlAbilityDefinition {
 
-        public String name; // <-- Campo directo en v1beta
-        public List<GqlAbilityEffect> ability_effects; // <-- Campo v1beta
+        public String name;
+        public List<GqlAbilityEffect> ability_effects; // <-- (pokemon_v2_abilityeffecttext)
     }
 
     public static class GqlAbilityEffect {
@@ -105,7 +105,7 @@ public class PokeApiIngestionService {
         public String effect;
     }
 
-    // --- DTOs para Movimientos (Moves) - v1beta Schema ---
+    // --- DTOs para Movimientos (Moves) - (Actualizado a v2) ---
     public static class GqlMoveDefinitionResponse {
 
         public GqlMoveDefinitionData data;
@@ -113,7 +113,7 @@ public class PokeApiIngestionService {
 
     public static class GqlMoveDefinitionData {
 
-        public List<GqlMoveDefinition> pokemonmove; // <-- Raíz v1beta
+        public List<GqlMoveDefinition> pokemon_v2_move; // <-- CORREGIDO
     }
 
     public static class GqlMoveDefinition {
@@ -123,11 +123,11 @@ public class PokeApiIngestionService {
         public Integer accuracy;
         public Integer pp;
         public Integer priority;
-        public GqlNameWrapper move_damage_class; // <-- Campo v1beta
-        public GqlNameWrapper type; // <-- Campo v1beta
+        public GqlNameWrapper move_damage_class; // <-- (pokemon_v2_movedamageclass)
+        public GqlNameWrapper type; // <-- (pokemon_v2_type)
     }
 
-    // --- DTOs para Pokémon - v1beta Schema ---
+    // --- DTOs para Pokémon - (Actualizado a v2) ---
     public static class GqlPokemonspeciesResponse {
 
         public GqlPokemonspeciesData data;
@@ -135,43 +135,43 @@ public class PokeApiIngestionService {
 
     public static class GqlPokemonspeciesData {
 
-        public List<GqlPokemonspecies> pokemonspecies; // <-- Raíz v1beta
+        public List<GqlPokemonspecies> pokemon_v2_pokemonspecies; // <-- CORREGIDO
     }
 
     public static class GqlPokemonspecies {
 
         public String name;
-        public List<GqlPokemonInstance> pokemons; // <-- Campo v1beta
+        public List<GqlPokemonInstance> pokemons; // <-- (pokemon_v2_pokemon)
     }
 
-    // --- DTOs para Instancias de Pokémon (Links) - v1beta Schema ---
+    // --- DTOs para Instancias de Pokémon (Links) - (Actualizado a v2) ---
     public static class GqlPokemonInstance {
 
-        public List<GqlPokemonStat> stats; // <-- Campo v1beta
-        public List<GqlPokemonTypeLink> types; // <-- Campo v1beta
-        public List<GqlAbilityLink> abilities; // <-- Campo v1beta
-        public List<GqlMoveLink> moves; // <-- Campo v1beta
+        public List<GqlPokemonStat> stats; // <-- (pokemon_v2_pokemonstat)
+        public List<GqlPokemonTypeLink> types; // <-- (pokemon_v2_pokemontype)
+        public List<GqlAbilityLink> abilities; // <-- (pokemon_v2_pokemonability)
+        public List<GqlMoveLink> moves; // <-- (pokemon_v2_pokemonmove)
     }
 
     public static class GqlPokemonStat {
 
         public int base_stat;
-        public GqlNameWrapper stat; // <-- Campo v1beta
+        public GqlNameWrapper stat; // <-- (pokemon_v2_stat)
     }
 
     public static class GqlPokemonTypeLink {
 
-        public GqlNameWrapper type; // <-- Campo v1beta
+        public GqlNameWrapper type; // <-- (pokemon_v2_type)
     }
 
     public static class GqlAbilityLink {
 
-        public GqlNameWrapper ability; // <-- Campo v1beta
+        public GqlNameWrapper ability; // <-- (pokemon_v2_ability)
     }
 
     public static class GqlMoveLink {
 
-        public GqlNameWrapper move; // <-- Campo v1beta
+        public GqlNameWrapper move; // <-- (pokemon_v2_move)
     }
 
     // --- (INICIO) MÉTODOS PARA CARGAR CACHÉ ---
@@ -218,9 +218,6 @@ public class PokeApiIngestionService {
     }
     // --- (FIN) MÉTODOS PARA CARGAR CACHÉ ---
 
-    /**
-     * Ejecuta una consulta GraphQL genérica.
-     */
     private <T> Mono<T> executeGqlQuery(String query, Class<T> responseClass) {
         return pokeApiWebClient.post()
                 .contentType(MediaType.APPLICATION_JSON)
@@ -237,16 +234,13 @@ public class PokeApiIngestionService {
                 .doOnError(e -> log.error("Error al ejecutar consulta GraphQL o deserializar: {}", e.getMessage()));
     }
 
-    /**
-     * Tarea 1: Descarga y guarda los 18 tipos de Pokémon. (v1beta Schema)
-     */
     @Transactional
     public Mono<Void> ingestTypes() {
-        log.info("Iniciando ingesta de Tipos (esquema v1beta)...");
-        // CORREGIDO: Query para v1beta
+        log.info("Iniciando ingesta de Tipos (esquema v2)...");
+        // CORREGIDO: Query para v2
         String query = """
             query {
-              pokemontype {
+              pokemon_v2_type(limit: 18) {
                 name
               }
             }
@@ -257,7 +251,7 @@ public class PokeApiIngestionService {
                         log.error("Respuesta de API (Tipos) nula o inválida.");
                         return Flux.empty();
                     }
-                    List<GqlTypeDefinition> types = response.data.pokemontype; // <-- Raíz v1beta
+                    List<GqlTypeDefinition> types = response.data.pokemon_v2_type; // <-- CORREGIDO
                     if (types == null) {
                         log.warn("La API de Tipos devolvió datos, pero la lista de tipos era nula.");
                         return Flux.empty();
@@ -276,18 +270,15 @@ public class PokeApiIngestionService {
                 .then();
     }
 
-    /**
-     * Tarea 2: Descarga y guarda todas las habilidades. (v1beta Schema)
-     */
     @Transactional
     public Mono<Void> ingestAbilities() {
-        log.info("Iniciando ingesta de Habilidades (esquema v1beta)...");
-        // CORREGIDO: Query para v1beta
+        log.info("Iniciando ingesta de Habilidades (esquema v2)...");
+        // CORREGIDO: Query para v2
         String query = """
             query {
-              pokemonability(limit: 370) {
+              pokemon_v2_ability(limit: 370) {
                 name
-                ability_effects(where: {language_id: {_eq: 9}}) {
+                ability_effects: pokemon_v2_abilityeffecttexts(where: {language_id: {_eq: 9}}) {
                   effect
                 }
               }
@@ -299,7 +290,7 @@ public class PokeApiIngestionService {
                         log.error("Respuesta de API (Habilidades) nula o inválida.");
                         return Flux.empty();
                     }
-                    List<GqlAbilityDefinition> abilities = response.data.pokemonability; // <-- Raíz v1beta
+                    List<GqlAbilityDefinition> abilities = response.data.pokemon_v2_ability; // <-- CORREGIDO
                     if (abilities == null) {
                         log.warn("La API de Habilidades devolvió datos, pero la lista de habilidades era nula.");
                         return Flux.empty();
@@ -326,25 +317,22 @@ public class PokeApiIngestionService {
                 .then();
     }
 
-    /**
-     * Tarea 3: Descarga y guarda todos los movimientos. (v1beta Schema)
-     */
     @Transactional
     public Mono<Void> ingestMoves() {
-        log.info("Iniciando ingesta de Movimientos (esquema v1beta)...");
-        // CORREGIDO: Query para v1beta
+        log.info("Iniciando ingesta de Movimientos (esquema v2)...");
+        // CORREGIDO: Query para v2
         String query = """
             query {
-              pokemonmove(limit: 950) {
+              pokemon_v2_move(limit: 950) {
                 name
                 power
                 accuracy
                 pp
                 priority
-                move_damage_class {
+                move_damage_class: pokemon_v2_movedamageclass {
                   name
                 }
-                type {
+                type: pokemon_v2_type {
                   name
                 }
               }
@@ -356,7 +344,7 @@ public class PokeApiIngestionService {
                         log.error("Respuesta de API (Movimientos) nula o inválida.");
                         return Flux.empty();
                     }
-                    List<GqlMoveDefinition> moves = response.data.pokemonmove; // <-- Raíz v1beta
+                    List<GqlMoveDefinition> moves = response.data.pokemon_v2_move; // <-- CORREGIDO
                     if (moves == null) {
                         log.warn("La API de Movimientos devolvió datos, pero la lista de movimientos era nula.");
                         return Flux.empty();
@@ -394,36 +382,33 @@ public class PokeApiIngestionService {
                 .then();
     }
 
-    /**
-     * Tarea 4: Descarga y guarda los primeros 151 Pokémon (Gen 1). (v1beta
-     * Schema)
-     */
     @Transactional
     public Mono<Void> ingestPokemon() {
-        log.info("Iniciando ingesta de Pokémon (1-151) (esquema v1beta)...");
+        log.info("Iniciando ingesta de Pokémon (1-151) (esquema v2)...");
+        // CORREGIDO: Query para v2
         String query = """
             query {
-              pokemonspecies(limit: 151, order_by: {id: asc}) {
+              pokemon_v2_pokemonspecies(limit: 151, order_by: {id: asc}) {
                 name
-                pokemons(limit: 1) {
-                  stats {
+                pokemons: pokemon_v2_pokemons(limit: 1) {
+                  stats: pokemon_v2_pokemonstats {
                     base_stat
-                    stat {
+                    stat: pokemon_v2_stat {
                       name
                     }
                   }
-                  types {
-                    type {
+                  types: pokemon_v2_pokemontypes {
+                    type: pokemon_v2_type {
                       name
                     }
                   }
-                  abilities {
-                    ability {
+                  abilities: pokemon_v2_pokemonabilities {
+                    ability: pokemon_v2_ability {
                       name
                     }
                   }
-                  moves(limit: 50) {
-                    move {
+                  moves: pokemon_v2_pokemonmoves(limit: 50) {
+                    move: pokemon_v2_move {
                       name
                     }
                   }
@@ -437,7 +422,7 @@ public class PokeApiIngestionService {
                         log.error("Respuesta de API (Pokemon) nula o inválida.");
                         return Flux.empty();
                     }
-                    List<GqlPokemonspecies> pokemonList = response.data.pokemonspecies; // <-- Raíz v1beta
+                    List<GqlPokemonspecies> pokemonList = response.data.pokemon_v2_pokemonspecies; // <-- CORREGIDO
                     if (pokemonList == null) {
                         log.warn("La API de Pokémon devolvió datos, pero la lista de pokémon era nula.");
                         return Flux.empty();
@@ -495,20 +480,17 @@ public class PokeApiIngestionService {
                 .then();
     }
 
-    /**
-     * Tarea 5: Actualiza las relaciones de daño de los tipos. (v1beta Schema)
-     */
     @Transactional
     public Mono<Void> ingestTypeDamageRelations() {
-        log.info("Iniciando ingesta de Relaciones de Daño de Tipos (esquema v1beta)...");
-        // CORREGIDO: Query para v1beta
+        log.info("Iniciando ingesta de Relaciones de Daño de Tipos (esquema v2)...");
+        // CORREGIDO: Query para v2
         String query = """
             query {
-              pokemontype {
+              pokemon_v2_type(limit: 18) {
                 name
-                type_efficacies {
+                type_efficacies: pokemon_v2_typeefficacies {
                   damage_factor
-                  damage_type {
+                  damage_type: pokemon_v2_type {
                     name
                   }
                 }
@@ -518,11 +500,11 @@ public class PokeApiIngestionService {
 
         return executeGqlQuery(query, GqlTypeDefinitionResponse.class)
                 .map(response -> {
-                    if (response == null || response.data == null || response.data.pokemontype == null) {
+                    if (response == null || response.data == null || response.data.pokemon_v2_type == null) {
                         log.error("Respuesta de API (Relaciones de Tipos) nula o inválida.");
                         return Collections.<GqlTypeDefinition>emptyList();
                     }
-                    return response.data.pokemontype;
+                    return response.data.pokemon_v2_type;
                 })
                 .flatMap(allTypeDefs -> {
                     for (GqlTypeDefinition attackingTypeGql : allTypeDefs) {
