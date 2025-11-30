@@ -7,13 +7,17 @@ import com.pokemon.game.model.StaticMoveData;
 import com.pokemon.game.repository.StaticMoveDataRepository;
 import lombok.Getter;
 import lombok.Setter;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ *
+ * Luis
+ */
 @Getter
 @Setter
 public class BattleService {
@@ -24,8 +28,10 @@ public class BattleService {
     private boolean isFinished;
     private Long winnerId;
 
+    private final Map<Long, String> queuedMoves = new ConcurrentHashMap<>();
+
     private final IDamageCalculatorService damageCalculatorService;
-    private final StaticMoveDataRepository moveRepository; // <--- ESTO FALTABA
+    private final StaticMoveDataRepository moveRepository;
 
     public BattleService(UUID lobbyId, List<Player> players,
             IDamageCalculatorService damageCalculatorService,
@@ -48,6 +54,31 @@ public class BattleService {
                     .orElseThrow(() -> new IllegalStateException("El jugador " + player.getUser().getUsername() + " no tiene Pokémon vivos."));
             activePokemon.put(player.getId(), firstPokemon);
         }
+    }
+
+    public synchronized BattleTurnResultDTO registerPlayerMove(Long playerId, String moveName) {
+        if (isFinished) {
+            throw new IllegalStateException("La batalla ya ha terminado.");
+        }
+
+        if (!activePokemon.containsKey(playerId)) {
+            throw new IllegalArgumentException("El jugador no participa en esta batalla.");
+        }
+
+        if (queuedMoves.containsKey(playerId)) {
+            queuedMoves.put(playerId, moveName);
+        } else {
+            queuedMoves.put(playerId, moveName);
+        }
+
+        if (queuedMoves.size() >= 2) {
+            BattleTurnResultDTO result = resolveTurn(new HashMap<>(queuedMoves));
+
+            queuedMoves.clear();
+            return result;
+        }
+
+        return null;
     }
 
     public BattleTurnResultDTO resolveTurn(Map<Long, String> playerMoves) {
@@ -74,14 +105,14 @@ public class BattleService {
 
         executeAttack(firstAttacker, secondAttacker, firstMove, log);
 
-        if (secondAttacker.getCurrentHp() > 0) {
+        if (secondAttacker.getCurrentHp() > 0 && !isFinished) {
             executeAttack(secondAttacker, firstAttacker, secondMove, log);
-        } else {
+        } else if (secondAttacker.getCurrentHp() <= 0) {
             log.add(secondAttacker.getBasePokemon().getName() + " se debilitó!");
             checkWinCondition(firstAttacker.getPlayer().getId());
         }
 
-        if (firstAttacker.getCurrentHp() <= 0) {
+        if (firstAttacker.getCurrentHp() <= 0 && !isFinished) {
             log.add(firstAttacker.getBasePokemon().getName() + " se debilitó!");
             checkWinCondition(secondAttacker.getPlayer().getId());
         }
@@ -96,7 +127,6 @@ public class BattleService {
     private void executeAttack(PlayerPokemon attacker, PlayerPokemon defender, StaticMoveData move, List<String> log) {
         log.add(attacker.getBasePokemon().getName() + " usó " + move.getName() + "!");
 
-        // Chequeo de precisión
         if (Math.random() * 100 > move.getAccuracy()) {
             log.add("¡El ataque falló!");
             return;
