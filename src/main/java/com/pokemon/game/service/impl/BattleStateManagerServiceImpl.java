@@ -1,6 +1,7 @@
 package com.pokemon.game.service.impl;
 
 import com.pokemon.game.model.Player;
+import com.pokemon.game.repository.PlayerPokemonRepository;
 import com.pokemon.game.repository.StaticMoveDataRepository;
 import com.pokemon.game.service.BattleService;
 import com.pokemon.game.service.IBattleStateManagerService;
@@ -14,13 +15,18 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ *
+ * Luis
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class BattleStateManagerServiceImpl implements IBattleStateManagerService {
 
     private final IDamageCalculatorService damageCalculatorService;
-    private final StaticMoveDataRepository moveRepository; // <--- ESTO FALTABA
+    private final StaticMoveDataRepository moveRepository;
+    private final PlayerPokemonRepository playerPokemonRepository;
 
     private final Map<UUID, BattleService> activeBattles = new ConcurrentHashMap<>();
 
@@ -33,7 +39,13 @@ public class BattleStateManagerServiceImpl implements IBattleStateManagerService
 
         log.info("Creando nueva instancia de BattleService para Lobby: {}", lobbyId);
 
-        BattleService newBattle = new BattleService(lobbyId, players, damageCalculatorService, moveRepository);
+        BattleService newBattle = new BattleService(
+                lobbyId,
+                players,
+                damageCalculatorService,
+                moveRepository,
+                playerPokemonRepository
+        );
 
         activeBattles.put(lobbyId, newBattle);
         return newBattle;
