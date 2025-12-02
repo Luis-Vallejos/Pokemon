@@ -1,7 +1,7 @@
 package com.pokemon.game.controller;
 
 import com.pokemon.game.dto.BattleActionDTO;
-import com.pokemon.game.dto.BattleTurnResultDTO;
+import com.pokemon.game.dto.payload.BattleUpdatePayload;
 import com.pokemon.game.model.Player;
 import com.pokemon.game.model.User;
 import com.pokemon.game.repository.PlayerRepository;
@@ -44,28 +44,42 @@ public class BattleController {
         log.info("Acción recibida de {}: {} en lobby {}", username, action.moveName(), lobbyId);
 
         if (!battleStateManager.battleExists(lobbyId)) {
-            log.error("La batalla para el lobby {} no existe.", lobbyId);
+            sendError(username, "La batalla no existe o ha terminado.");
             return;
         }
+
         BattleService battle = battleStateManager.getBattle(lobbyId);
 
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        Player player = playerRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Jugador no encontrado"));
+        try {
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+            Player player = playerRepository.findByUser(user)
+                    .orElseThrow(() -> new RuntimeException("Jugador no encontrado"));
+            
+            BattleUpdatePayload updatePayload = battle.executeTurn(player.getId(), action.moveName());
 
-        BattleTurnResultDTO turnResult = battle.registerPlayerMove(player.getId(), action.moveName());
+            log.info("Acción válida. Daño: {}. Siguiente turno: ID {}", updatePayload.damageDealt(), updatePayload.nextTurnPlayerId());
+            messagingTemplate.convertAndSend("/topic/battle/" + lobbyId, updatePayload);
 
-        if (turnResult != null) {
-            log.info("Turno resuelto para lobby {}. Transmitiendo resultados.", lobbyId);
-            messagingTemplate.convertAndSend("/topic/battle/" + lobbyId, turnResult);
-
-            if (turnResult.matchFinished()) {
-                log.info("Batalla {} finalizada. Ganador: {}", lobbyId, turnResult.winnerId());
+            if (updatePayload.matchFinished()) {
+                log.info("Batalla {} finalizada. Ganador: {}", lobbyId, updatePayload.winnerId());
                 battleStateManager.removeBattle(lobbyId);
             }
-        } else {
-            log.info("Esperando acción del oponente en lobby {}", lobbyId);
+
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            log.warn("Acción rechazada para {}: {}", username, e.getMessage());
+            sendError(username, "Error: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("Error inesperado en batalla", e);
+            sendError(username, "Error interno del servidor.");
         }
+    }
+
+    private void sendError(String username, String errorMessage) {
+        messagingTemplate.convertAndSendToUser(
+                username,
+                "/queue/errors",
+                errorMessage
+        );
     }
 }
