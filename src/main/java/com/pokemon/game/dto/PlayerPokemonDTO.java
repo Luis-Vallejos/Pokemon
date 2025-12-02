@@ -31,7 +31,7 @@ public record PlayerPokemonDTO(
                 entity.getStatusCondition(),
                 entity.getSlot(),
                 entity.getMoves().stream()
-                        .map(move -> move.getName())
+                        .map(pokemonMove -> pokemonMove.getStaticMoveData().getName())
                         .collect(Collectors.toSet())
         );
     }
