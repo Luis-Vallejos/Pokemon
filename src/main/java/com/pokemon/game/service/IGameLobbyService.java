@@ -17,4 +17,6 @@ public interface IGameLobbyService {
     GameLobbyDTO joinLobby(UUID lobbyId);
 
     void processTeamSelection(UUID lobbyId, TeamSetupDTO teamSetup);
+
+    void finishGame(UUID lobbyId);
 }

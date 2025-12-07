@@ -88,7 +88,6 @@ public class BattleService {
         }
 
         selectedMoveInstance.setCurrentPp(selectedMoveInstance.getCurrentPp() - 1);
-
         StaticMoveData staticData = selectedMoveInstance.getStaticMoveData();
 
         int damage = damageCalculatorService.calculateDamage(attacker, defender, staticData);
@@ -96,23 +95,25 @@ public class BattleService {
         int oldHp = defender.getCurrentHp();
         int newHp = Math.max(0, oldHp - damage);
         defender.setCurrentHp(newHp);
+
         playerPokemonRepository.save(defender);
         playerPokemonRepository.save(attacker);
 
-        String message = String.format("¡%s usó %s (PP: %d/%d) y causó %d de daño!",
+        String message = String.format("¡%s usó %s y causó %d de daño!",
                 attacker.getBasePokemon().getName(),
                 staticData.getName(),
-                selectedMoveInstance.getCurrentPp(),
-                selectedMoveInstance.getMaxPp(),
                 damage);
 
         if (newHp == 0) {
             message += " ¡" + defender.getBasePokemon().getName() + " se debilitó!";
+
             checkWinCondition(actingPlayerId);
         }
 
         if (!isFinished) {
             this.currentTurnPlayerId = opponentId;
+        } else {
+            message += " ¡El jugador " + playersMap.get(winnerId).getUser().getUsername() + " ha ganado la batalla!";
         }
 
         return new BattleUpdatePayload(

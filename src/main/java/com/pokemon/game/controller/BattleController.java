@@ -8,6 +8,7 @@ import com.pokemon.game.repository.PlayerRepository;
 import com.pokemon.game.repository.UserRepository;
 import com.pokemon.game.service.BattleService;
 import com.pokemon.game.service.IBattleStateManagerService;
+import com.pokemon.game.service.IGameLobbyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -29,6 +30,7 @@ import java.util.UUID;
 public class BattleController {
 
     private final IBattleStateManagerService battleStateManager;
+    private final IGameLobbyService gameLobbyService;
     private final SimpMessagingTemplate messagingTemplate;
 
     private final UserRepository userRepository;
@@ -55,14 +57,34 @@ public class BattleController {
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
             Player player = playerRepository.findByUser(user)
                     .orElseThrow(() -> new RuntimeException("Jugador no encontrado"));
-            
+
             BattleUpdatePayload updatePayload = battle.executeTurn(player.getId(), action.moveName());
 
             log.info("Acción válida. Daño: {}. Siguiente turno: ID {}", updatePayload.damageDealt(), updatePayload.nextTurnPlayerId());
-            messagingTemplate.convertAndSend("/topic/battle/" + lobbyId, updatePayload);
+
+            for (Player battlePlayer : battle.getPlayersMap().values()) {
+                String playerUsername = battlePlayer.getUser().getUsername();
+                messagingTemplate.convertAndSendToUser(
+                        playerUsername,
+                        "/queue/battle-update",
+                        updatePayload
+                );
+            }
 
             if (updatePayload.matchFinished()) {
-                log.info("Batalla {} finalizada. Ganador: {}", lobbyId, updatePayload.winnerId());
+                log.info("Batalla {} finalizada. Ganador ID: {}", lobbyId, updatePayload.winnerId());
+
+                gameLobbyService.finishGame(lobbyId);
+
+                for (Player battlePlayer : battle.getPlayersMap().values()) {
+                    String resultMessage = battlePlayer.getId().equals(updatePayload.winnerId()) ? "VICTORIA" : "DERROTA";
+                    messagingTemplate.convertAndSendToUser(
+                            battlePlayer.getUser().getUsername(),
+                            "/queue/game-result",
+                            resultMessage
+                    );
+                }
+
                 battleStateManager.removeBattle(lobbyId);
             }
 

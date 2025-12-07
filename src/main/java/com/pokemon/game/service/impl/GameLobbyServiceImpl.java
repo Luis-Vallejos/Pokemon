@@ -144,6 +144,11 @@ public class GameLobbyServiceImpl implements IGameLobbyService {
 
         teamService.createPlayerTeam(teamSetup);
 
+        if (lobby.getStatus() == Enums.GameStatus.WAITING) {
+            lobby.setStatus(Enums.GameStatus.IN_PROGRESS);
+            gameLobbyRepository.save(lobby);
+        }
+
         Map<String, Object> readyMessage = Map.of(
                 "type", "PLAYER_READY",
                 "username", username,
@@ -154,5 +159,16 @@ public class GameLobbyServiceImpl implements IGameLobbyService {
         messagingTemplate.convertAndSend(gameTopic, readyMessage);
 
         log.info("Equipo guardado y notificación PLAYER_READY enviada a {}", gameTopic);
+    }
+
+    @Override
+    @Transactional
+    public void finishGame(UUID lobbyId) {
+        GameLobby lobby = gameLobbyRepository.findById(lobbyId)
+                .orElseThrow(() -> new IllegalArgumentException("Lobby no encontrado para finalizar"));
+
+        lobby.setStatus(Enums.GameStatus.FINISHED);
+        gameLobbyRepository.save(lobby);
+        log.info("Lobby {} marcado como FINISHED en base de datos.", lobbyId);
     }
 }
