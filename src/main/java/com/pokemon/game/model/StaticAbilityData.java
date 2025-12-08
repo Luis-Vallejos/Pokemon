@@ -39,6 +39,6 @@ public class StaticAbilityData implements Serializable {
     @Column(name = "name", unique = true, nullable = false)
     private String name;
 
-    @Column(name = "description", nullable = false, length = 1024)
+    @Column(name = "description", nullable = false, columnDefinition = "TEXT")
     private String description;
 }
